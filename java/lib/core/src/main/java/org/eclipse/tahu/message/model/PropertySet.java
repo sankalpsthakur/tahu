@@ -19,16 +19,20 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * A class that maintains a set of properties associated with a {@link Metric}.
  */
-public class PropertySet implements Map<String, PropertyValue> {
+public class PropertySet implements Map<String, PropertyValue<? extends PropertyDataType>> {
+
+	private static Logger logger = LoggerFactory.getLogger(PropertySet.class.getName());
 
 	@JsonIgnore
-	private Map<String, PropertyValue> map;
+	private Map<String, PropertyValue<? extends PropertyDataType>> map;
 
 	/**
 	 * Default Constructor
@@ -41,17 +45,27 @@ public class PropertySet implements Map<String, PropertyValue> {
 	 * Copy Constructor
 	 *
 	 * @param propertySet the {@link PropertySet} to copy
+	 * @throws Exception
 	 */
-	public PropertySet(PropertySet propertySet) {
-		this.map = propertySet.getPropertyMap();
+	public PropertySet(PropertySet propertySet) throws Exception {
+		this.map = new HashMap<>();
+		if (propertySet.getPropertyMap() != null) {
+			for (Entry<String, PropertyValue<? extends PropertyDataType>> entry : propertySet.getPropertyMap()
+					.entrySet()) {
+				this.map.put(entry.getKey(), new PropertyValue<>(entry.getValue()));
+			}
+		}
+
+		logger.trace("Copying - Orig: {}", propertySet);
+		logger.trace("Copying - New : {}", this);
 	}
 
 	/**
 	 * Constructor
 	 *
-	 * @param propertyMap the {@link Map} of {@link String}s to {@link PropertyValie}s
+	 * @param propertyMap the {@link Map} of {@link String}s to {@link PropertyValue}s
 	 */
-	private PropertySet(Map<String, PropertyValue> propertyMap) {
+	private PropertySet(Map<String, PropertyValue<? extends PropertyDataType>> propertyMap) {
 		this.map = propertyMap;
 	}
 
@@ -63,7 +77,7 @@ public class PropertySet implements Map<String, PropertyValue> {
 	 * @return the {@link PropertyValue} associated with the name
 	 */
 	@JsonIgnore
-	public PropertyValue getPropertyValue(String name) {
+	public PropertyValue<? extends PropertyDataType> getPropertyValue(String name) {
 		return this.map.get(name);
 	}
 
@@ -74,7 +88,7 @@ public class PropertySet implements Map<String, PropertyValue> {
 	 * @param value the {@link PropertyValue} associated with the property name
 	 */
 	@JsonIgnore
-	public void setProperty(String name, PropertyValue value) {
+	public void setProperty(String name, PropertyValue<? extends PropertyDataType> value) {
 		this.map.put(name, value);
 	}
 
@@ -112,7 +126,7 @@ public class PropertySet implements Map<String, PropertyValue> {
 	 * @return the values of the {@link PropertySet}
 	 */
 	@JsonIgnore
-	public Collection<PropertyValue> getValues() {
+	public Collection<PropertyValue<? extends PropertyDataType>> getValues() {
 		return map.values();
 	}
 
@@ -122,7 +136,7 @@ public class PropertySet implements Map<String, PropertyValue> {
 	 * @return the {@link Map} of {@link String} property names to {@link PropertyValue}s
 	 */
 	@JsonIgnore
-	public Map<String, PropertyValue> getPropertyMap() {
+	public Map<String, PropertyValue<? extends PropertyDataType>> getPropertyMap() {
 		return map;
 	}
 
@@ -152,22 +166,22 @@ public class PropertySet implements Map<String, PropertyValue> {
 	}
 
 	@Override
-	public PropertyValue get(Object key) {
+	public PropertyValue<? extends PropertyDataType> get(Object key) {
 		return map.get(key);
 	}
 
 	@Override
-	public PropertyValue put(String key, PropertyValue value) {
+	public PropertyValue<? extends PropertyDataType> put(String key, PropertyValue<? extends PropertyDataType> value) {
 		return map.put(key, value);
 	}
 
 	@Override
-	public PropertyValue remove(Object key) {
+	public PropertyValue<? extends PropertyDataType> remove(Object key) {
 		return map.remove(key);
 	}
 
 	@Override
-	public void putAll(Map<? extends String, ? extends PropertyValue> m) {
+	public void putAll(Map<? extends String, ? extends PropertyValue<? extends PropertyDataType>> m) {
 		map.putAll(m);
 	}
 
@@ -177,12 +191,12 @@ public class PropertySet implements Map<String, PropertyValue> {
 	}
 
 	@Override
-	public Collection<PropertyValue> values() {
+	public Collection<PropertyValue<? extends PropertyDataType>> values() {
 		return map.values();
 	}
 
 	@Override
-	public Set<java.util.Map.Entry<String, PropertyValue>> entrySet() {
+	public Set<java.util.Map.Entry<String, PropertyValue<? extends PropertyDataType>>> entrySet() {
 		return map.entrySet();
 	}
 
@@ -191,30 +205,30 @@ public class PropertySet implements Map<String, PropertyValue> {
 	 */
 	public static class PropertySetBuilder {
 
-		private Map<String, PropertyValue> propertyMap;
+		private Map<String, PropertyValue<? extends PropertyDataType>> propertyMap;
 
 		public PropertySetBuilder() {
 			this.propertyMap = new HashMap<>();
 		}
 
-		public PropertySetBuilder(Map<String, PropertyValue> propertyMap) {
+		public PropertySetBuilder(Map<String, PropertyValue<? extends PropertyDataType>> propertyMap) {
 			this.propertyMap = propertyMap;
 		}
 
 		public PropertySetBuilder(PropertySet propertySet) throws SparkplugInvalidTypeException {
 			this.propertyMap = new HashMap<>();
 			for (String name : propertySet.getNames()) {
-				PropertyValue value = propertySet.getPropertyValue(name);
-				propertyMap.put(name, new PropertyValue(value.getType(), value.getValue()));
+				PropertyValue<? extends PropertyDataType> value = propertySet.getPropertyValue(name);
+				propertyMap.put(name, new PropertyValue<>(value.getType(), value.getValue()));
 			}
 		}
 
-		public PropertySetBuilder addProperty(String name, PropertyValue value) {
+		public PropertySetBuilder addProperty(String name, PropertyValue<? extends PropertyDataType> value) {
 			this.propertyMap.put(name, value);
 			return this;
 		}
 
-		public PropertySetBuilder addProperties(Map<String, PropertyValue> properties) {
+		public PropertySetBuilder addProperties(Map<String, PropertyValue<? extends PropertyDataType>> properties) {
 			this.propertyMap.putAll(properties);
 			return this;
 		}

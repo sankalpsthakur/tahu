@@ -13,18 +13,25 @@
 
 package org.eclipse.tahu.message.model;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 import org.eclipse.tahu.SparkplugInvalidTypeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * The value of a property in a {@link PropertySet}.
  */
-public class PropertyValue {
+public class PropertyValue<T extends PropertyDataType> {
 
-	private PropertyDataType type;
+	private static Logger logger = LoggerFactory.getLogger(PropertyValue.class.getName());
+
+	private T type;
 	private Object value;
 	private Boolean isNull = null;
 
@@ -41,11 +48,42 @@ public class PropertyValue {
 	 * @param value the property value
 	 * @throws SparkplugInvalidTypeException
 	 */
-	public PropertyValue(PropertyDataType type, Object value) throws SparkplugInvalidTypeException {
+	public PropertyValue(T type, Object value) throws SparkplugInvalidTypeException {
 		this.type = type;
 		this.value = value;
 		isNull = (value == null) ? true : false;
 		type.checkType(value);
+	}
+
+	public PropertyValue(PropertyValue<T> propertyValue) throws Exception {
+		if (propertyValue == null) {
+			return;
+		}
+
+		this.type = propertyValue.getType();
+		this.isNull = propertyValue.isNull();
+
+		if (!isNull) {
+			if (type == PropertyDataType.DateTime) {
+				this.value = new Date(((Date) propertyValue.getValue()).getTime());
+			} else if (type == PropertyDataType.PropertySet) {
+				this.value = new PropertySet((PropertySet) propertyValue.getValue());
+			} else if (type == PropertyDataType.PropertySetList) {
+				@SuppressWarnings("unchecked")
+				List<PropertySet> originalPropertySetList = (List<PropertySet>) propertyValue.getValue();
+				List<PropertySet> newPropertySetList = new ArrayList<PropertySet>();
+				for (PropertySet propertySet : originalPropertySetList) {
+					newPropertySetList.add(new PropertySet(propertySet));
+				}
+				this.value = newPropertySetList;
+			} else {
+				this.value = propertyValue.getValue();
+			}
+		}
+		type.checkType(value);
+
+		logger.trace("Copying - Orig: {}", propertyValue);
+		logger.trace("copying - New : {}", this);
 	}
 
 	/**
@@ -53,7 +91,7 @@ public class PropertyValue {
 	 *
 	 * @return the {@link PropertyDataType} of the {@link PropertyValue}
 	 */
-	public PropertyDataType getType() {
+	public T getType() {
 		return type;
 	}
 
@@ -62,7 +100,7 @@ public class PropertyValue {
 	 *
 	 * @param type the {@link PropertyDataType} of this {@link PropertyValue}
 	 */
-	public void setType(PropertyDataType type) {
+	public void setType(T type) {
 		this.type = type;
 	}
 
@@ -103,7 +141,8 @@ public class PropertyValue {
 		if (object == null || this.getClass() != object.getClass()) {
 			return false;
 		}
-		PropertyValue propValue = (PropertyValue) object;
+		@SuppressWarnings("unchecked")
+		PropertyValue<T> propValue = (PropertyValue<T>) object;
 		return Objects.equals(type, propValue.getType()) && Objects.equals(value, propValue.getValue());
 	}
 

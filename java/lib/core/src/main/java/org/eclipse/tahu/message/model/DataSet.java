@@ -17,7 +17,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.commons.compress.utils.Lists;
 import org.eclipse.tahu.SparkplugException;
+import org.eclipse.tahu.exception.TahuErrorCode;
+import org.eclipse.tahu.exception.TahuException;
 import org.eclipse.tahu.json.DataSetDeserializer;
 import org.eclipse.tahu.message.model.Row.RowBuilder;
 import org.slf4j.Logger;
@@ -81,6 +84,35 @@ public class DataSet {
 	}
 
 	/**
+	 * Copy Constructor
+	 *
+	 * @param dataSet the {@link DataSet} to copy
+	 */
+	public DataSet(DataSet dataSet) throws TahuException {
+		this.numOfColumns = dataSet.getNumOfColumns();
+		if (numOfColumns > 0) {
+			if (dataSet.getColumnNames() == null || dataSet.getTypes() == null
+					|| dataSet.getColumnNames().size() != dataSet.getTypes().size()) {
+				throw new TahuException(TahuErrorCode.INVALID_ARGUMENT, "Invalid DataSet to copy " + dataSet);
+			}
+			this.columnNames = new ArrayList<>();
+			for (String columnName : dataSet.getColumnNames()) {
+				this.columnNames.add(columnName);
+			}
+			this.types = new ArrayList<>();
+			for (DataSetDataType type : dataSet.getTypes()) {
+				this.types.add(type);
+			}
+			this.rows = new ArrayList<>();
+			if (dataSet.getRows() != null) {
+				for (Row row : dataSet.getRows()) {
+					this.rows.add(new Row(row));
+				}
+			}
+		}
+	}
+
+	/**
 	 * Returns the number of columns in the {@link DataSet}
 	 *
 	 * @return the number of columns in the {@link DataSet}
@@ -141,11 +173,15 @@ public class DataSet {
 	 */
 	@JsonGetter("rows")
 	public List<List<Object>> getRowsAsLists() {
-		List<List<Object>> list = new ArrayList<List<Object>>(getRows().size());
-		for (Row row : getRows()) {
-			list.add(Row.toValues(row));
+		if (getRows() == null) {
+			return Lists.newArrayList();
+		} else {
+			List<List<Object>> list = new ArrayList<List<Object>>(getRows().size());
+			for (Row row : getRows()) {
+				list.add(Row.toValues(row));
+			}
+			return list;
 		}
-		return list;
 	}
 
 	/**
@@ -244,7 +280,18 @@ public class DataSet {
 		builder.append(", columnNames=");
 		builder.append(columnNames);
 		builder.append(", types=");
-		builder.append(types);
+		if (types != null) {
+			builder.append("[");
+			for (int i = 0; i < types.size(); i++) {
+				builder.append(types.get(i).getType());
+				if (i + 1 != types.size()) {
+					builder.append(", ");
+				}
+			}
+			builder.append("]");
+		} else {
+			builder.append("null");
+		}
 		builder.append(", rows=");
 		builder.append(rows);
 		builder.append("]");
@@ -270,11 +317,23 @@ public class DataSet {
 
 		public DataSetBuilder(DataSet dataSet) {
 			this.numOfColumns = dataSet.getNumOfColumns();
-			this.columnNames = new ArrayList<String>(dataSet.getColumnNames());
-			this.types = new ArrayList<DataSetDataType>(dataSet.getTypes());
-			this.rows = new ArrayList<Row>(dataSet.getRows().size());
-			for (Row row : dataSet.getRows()) {
-				rows.add(new RowBuilder(row).createRow());
+			if (dataSet.getColumnNames() == null) {
+				this.columnNames = Lists.newArrayList();
+			} else {
+				this.columnNames = new ArrayList<String>(dataSet.getColumnNames());
+			}
+			if (dataSet.getTypes() == null) {
+				this.types = Lists.newArrayList();
+			} else {
+				this.types = new ArrayList<DataSetDataType>(dataSet.getTypes());
+			}
+			if (dataSet.getRows() == null) {
+				this.rows = Lists.newArrayList();
+			} else {
+				this.rows = new ArrayList<Row>(dataSet.getRows().size());
+				for (Row row : dataSet.getRows()) {
+					rows.add(new RowBuilder(row).createRow());
+				}
 			}
 		}
 

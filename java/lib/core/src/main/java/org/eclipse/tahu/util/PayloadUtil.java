@@ -59,6 +59,7 @@ public class PayloadUtil {
 	 */
 	public static String toJsonString(SparkplugBPayload payload) throws JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper();
+		mapper.registerModule(new DeserializerModule(new DeserializerModifier()));
 		return mapper.writeValueAsString(payload);
 	}
 
@@ -223,19 +224,19 @@ public class PayloadUtil {
 		return baos.toByteArray();
 	}
 
-	private static class CompressionConfig {
+	protected static class CompressionConfig {
 
 		private CompressionAlgorithm algorithm;
 
-		protected CompressionConfig() {
+		public CompressionConfig() {
 			this.algorithm = CompressionAlgorithm.DEFLATE;
 		}
 
-		protected CompressionAlgorithm getAlgorithm() {
+		public CompressionAlgorithm getAlgorithm() {
 			return algorithm;
 		}
 
-		protected void setAlgorithm(CompressionAlgorithm algorithm) {
+		public void setAlgorithm(CompressionAlgorithm algorithm) {
 			this.algorithm = algorithm;
 		}
 	}
