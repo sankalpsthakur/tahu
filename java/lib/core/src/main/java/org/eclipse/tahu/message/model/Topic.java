@@ -13,6 +13,8 @@
 
 package org.eclipse.tahu.message.model;
 
+import java.util.Objects;
+
 import org.eclipse.tahu.exception.TahuErrorCode;
 import org.eclipse.tahu.exception.TahuException;
 
@@ -166,6 +168,21 @@ public class Topic {
 		this.deviceId = null;
 	}
 
+	public static Topic parseTopic(String[] splitTopic) throws TahuException {
+		StringBuilder sb = new StringBuilder();
+		if (splitTopic != null && splitTopic.length > 0) {
+			for (int i = 0; i < splitTopic.length; i++) {
+				sb.append(splitTopic[i]);
+				if (i - 1 < splitTopic.length) {
+					sb.append("/");
+				}
+			}
+			return parseTopic(sb.toString());
+		} else {
+			throw new TahuException(TahuErrorCode.INVALID_ARGUMENT, "Split topic is null or empty");
+		}
+	}
+
 	/**
 	 * Parses a Sparkplug topic from an MQTT topic string
 	 *
@@ -205,7 +222,8 @@ public class Topic {
 				if (SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX.equals(splitTopic[0]) && (messageType == MessageType.DBIRTH
 						|| messageType == MessageType.DCMD || messageType == MessageType.DDATA
 						|| messageType == MessageType.DDEATH || messageType == MessageType.DRECORD)) {
-					return new Topic(SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX, splitTopic[1], splitTopic[3], messageType);
+					return new Topic(SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX, splitTopic[1], splitTopic[3],
+							splitTopic[4], messageType);
 				} else {
 					throw new TahuException(TahuErrorCode.INVALID_ARGUMENT,
 							"Invalid Sparkplug Device topic String: ''" + topicString);
@@ -216,6 +234,44 @@ public class Topic {
 			}
 		} catch (Exception e) {
 			throw new TahuException(TahuErrorCode.INTERNAL_ERROR, e);
+		}
+	}
+
+	/**
+	 * Checks whether the given MQTT topic string is a valid Sparkplug topic. Unlike {@link #parseTopic(String)}, this
+	 * method does not throw exceptions.
+	 *
+	 * @param topicString the MQTT topic string to check
+	 * @return {@code true} if the topic string is a valid Sparkplug topic, {@code false} otherwise
+	 */
+	public static boolean isValidTopic(String topicString) {
+		try {
+			if (topicString == null || !topicString.startsWith(SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX)
+					|| !topicString.contains("/")) {
+				return false;
+			}
+
+			String[] splitTopic = topicString.split("/");
+			if (splitTopic.length == 3) {
+				return SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX.equals(splitTopic[0])
+						&& SparkplugMeta.SPARKPLUG_TOPIC_HOST_STATE_TOKEN.equals(splitTopic[1]);
+			} else if (splitTopic.length == 4) {
+				MessageType messageType = MessageType.parseMessageType(splitTopic[2]);
+				return SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX.equals(splitTopic[0])
+						&& (messageType == MessageType.NBIRTH || messageType == MessageType.NCMD
+								|| messageType == MessageType.NDATA || messageType == MessageType.NDEATH
+								|| messageType == MessageType.NRECORD);
+			} else if (splitTopic.length == 5) {
+				MessageType messageType = MessageType.parseMessageType(splitTopic[2]);
+				return SparkplugMeta.SPARKPLUG_B_TOPIC_PREFIX.equals(splitTopic[0])
+						&& (messageType == MessageType.DBIRTH || messageType == MessageType.DCMD
+								|| messageType == MessageType.DDATA || messageType == MessageType.DDEATH
+								|| messageType == MessageType.DRECORD);
+			} else {
+				return false;
+			}
+		} catch (Exception e) {
+			return false;
 		}
 	}
 
@@ -314,5 +370,24 @@ public class Topic {
 	 */
 	public boolean isType(MessageType type) {
 		return this.type != null && this.type.equals(type);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(deviceId, edgeNodeId, groupId, hostApplicationId, namespace, type);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Topic other = (Topic) obj;
+		return Objects.equals(deviceId, other.deviceId) && Objects.equals(edgeNodeId, other.edgeNodeId)
+				&& Objects.equals(groupId, other.groupId) && Objects.equals(hostApplicationId, other.hostApplicationId)
+				&& Objects.equals(namespace, other.namespace) && type == other.type;
 	}
 }

@@ -13,6 +13,8 @@
 
 package org.eclipse.tahu.message.model;
 
+import java.util.Date;
+
 /**
  * A class representing a Sparkplug metric {@link DataSet} value
  */
@@ -38,6 +40,26 @@ public class Value<V> {
 		super();
 		this.type = type;
 		this.value = value;
+	}
+
+	/**
+	 * Copy Constructor
+	 *
+	 * @param originalValue the {@link Value} to copy
+	 */
+	@SuppressWarnings("unchecked")
+	public Value(Value<V> originalValue) {
+		this.type = originalValue.getType();
+		if (type == DataSetDataType.DateTime) {
+			if (originalValue.getValue() != null) {
+				Date date = new Date(((Date) originalValue.getValue()).getTime());
+				this.value = (V) date;
+			} else {
+				this.value = null;
+			}
+		} else {
+			this.value = originalValue.getValue() != null ? (V) originalValue.getValue() : null;
+		}
 	}
 
 	/**

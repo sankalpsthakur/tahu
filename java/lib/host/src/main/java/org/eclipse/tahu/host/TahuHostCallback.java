@@ -22,7 +22,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.tahu.host.api.HostApplicationEventHandler;
+import org.eclipse.tahu.host.api.MultiHostApplicationEventHandler;
 import org.eclipse.tahu.host.seq.SequenceReorderManager;
 import org.eclipse.tahu.message.PayloadDecoder;
 import org.eclipse.tahu.message.model.SparkplugBPayload;
@@ -51,7 +51,7 @@ public class TahuHostCallback implements ClientCallback {
 
 	private final boolean enableSequenceReordering;
 
-	private final HostApplicationEventHandler eventHandler;
+	private final MultiHostApplicationEventHandler eventHandler;
 
 	private final CommandPublisher commandPublisher;
 
@@ -61,9 +61,11 @@ public class TahuHostCallback implements ClientCallback {
 
 	private final String hostId;
 
-	public TahuHostCallback(HostApplicationEventHandler eventHandler, CommandPublisher commandPublisher,
+	private boolean onlineState;
+
+	public TahuHostCallback(MultiHostApplicationEventHandler eventHandler, CommandPublisher commandPublisher,
 			SequenceReorderManager sequenceReorderManager, PayloadDecoder<SparkplugBPayload> payloadDecoder,
-			String hostId) {
+			String hostId, boolean onlineState) {
 		this.eventHandler = eventHandler;
 		this.commandPublisher = commandPublisher;
 		if (sequenceReorderManager != null) {
@@ -76,6 +78,7 @@ public class TahuHostCallback implements ClientCallback {
 		}
 		this.payloadDecoder = payloadDecoder;
 		this.hostId = hostId;
+		this.onlineState = onlineState;
 
 		this.sparkplugBExecutors = new ThreadPoolExecutor[DEFAULT_NUM_OF_THREADS];
 		for (int i = 0; i < DEFAULT_NUM_OF_THREADS; i++) {
@@ -105,6 +108,10 @@ public class TahuHostCallback implements ClientCallback {
 
 	public void setMqttClients(Map<MqttServerName, TahuClient> tahuClients) {
 		this.tahuClients = tahuClients;
+	}
+
+	public void setOnlineState(boolean onlineState) {
+		this.onlineState = onlineState;
 	}
 
 	@Override
@@ -141,13 +148,19 @@ public class TahuHostCallback implements ClientCallback {
 					// This is a STATE message - handle as needed
 					ObjectMapper mapper = new ObjectMapper();
 					StatePayload statePayload = mapper.readValue(new String(message.getPayload()), StatePayload.class);
-					if (hostId != null && !hostId.trim().isEmpty() && splitTopic[2].equals(hostId)
-							&& !statePayload.isOnline()) {
-						// Make sure this isn't an OFFLINE message
-						logger.info(
-								"This is a offline STATE message from {} - correcting with new online STATE message",
-								splitTopic[2]);
-						client.publishBirthMessage();
+					if (hostId != null && !hostId.trim().isEmpty() && splitTopic[2].equals(hostId)) {
+						// Correct the state if it is not correct
+						if (!statePayload.isOnline() && onlineState) {
+							logger.info(
+									"This is a offline STATE message from {} - correcting with new online STATE message",
+									splitTopic[2]);
+							client.publishBirthMessage();
+						} else if (statePayload.isOnline() && !onlineState) {
+							logger.info(
+									"This is a online STATE message from {} - correcting with new offline STATE message",
+									splitTopic[2]);
+							client.publishLwt(true);
+						}
 					}
 				} else {
 					// Get the proper executor
@@ -201,7 +214,7 @@ public class TahuHostCallback implements ClientCallback {
 	public void connectionLost(MqttServerName mqttServerName, MqttServerUrl url, MqttClientId clientId,
 			Throwable cause) {
 		logger.warn("Connection Lost to - {} :: {} :: {}", mqttServerName, url, clientId);
-		eventHandler.onDisconnect();
+		eventHandler.onDisconnect(mqttServerName);
 
 		if (cause != null) {
 			// We don't need to see all of the connection lost callbacks for clients
@@ -240,7 +253,7 @@ public class TahuHostCallback implements ClientCallback {
 	public void connectComplete(boolean reconnect, MqttServerName server, MqttServerUrl url, MqttClientId clientId) {
 //		// Update the ONLINE Engine Info tag for the client
 //		updateEngineInfoDateTag(server, DATE_ONLINE);
-		eventHandler.onConnect();
+		eventHandler.onConnect(server);
 	}
 
 	private void updateEngineInfoDateTag(MqttServerName server, String tagName) {

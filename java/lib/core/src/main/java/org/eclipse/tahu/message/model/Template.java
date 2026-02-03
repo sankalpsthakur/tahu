@@ -19,6 +19,8 @@ import java.util.List;
 
 import org.eclipse.tahu.SparkplugException;
 import org.eclipse.tahu.message.model.Metric.MetricBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -31,6 +33,8 @@ import com.fasterxml.jackson.annotation.JsonSetter;
  */
 @JsonInclude(Include.NON_NULL)
 public class Template {
+
+	private static Logger logger = LoggerFactory.getLogger(Template.class.getName());
 
 	/**
 	 * The Template version.
@@ -83,6 +87,30 @@ public class Template {
 		this.isDefinition = isDefinition;
 		this.metrics = metrics;
 		this.parameters = parameters;
+	}
+
+	/**
+	 * Copy Constructor
+	 *
+	 * @param template the {@link Template} to copy
+	 * @throws Exception if the instantiation can not complete
+	 */
+	public Template(Template template) throws Exception {
+		this.version = template.getVersion();
+		this.templateRef = template.getTemplateRef();
+		this.isDefinition = template.isDefinition();
+		if (template.getMetrics() != null) {
+			this.metrics = new ArrayList<>();
+			for (Metric metric : template.getMetrics()) {
+				this.metrics.add(new Metric(metric));
+			}
+		}
+		if (template.getParameters() != null) {
+			this.parameters = new ArrayList<>();
+			for (Parameter parameter : template.getParameters()) {
+				this.parameters.add(new Parameter(parameter));
+			}
+		}
 	}
 
 	/**
@@ -188,6 +216,7 @@ public class Template {
 
 	/**
 	 * Adds a {@link Parameter} to this {@link Template}
+	 * 
 	 * @param parameter a {@link Parameter} to add to this {@link Template}
 	 */
 	public void addParameter(Parameter parameter) {

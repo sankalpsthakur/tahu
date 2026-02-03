@@ -41,6 +41,14 @@
         <configuration>
           <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
         </configuration>
+        <!-- https://stackoverflow.com/questions/70153962/nexus-staging-maven-plugin-maven-deploy-failed-an-api-incompatibility-was-enco -->
+        <dependencies>
+          <dependency>
+            <groupId>com.thoughtworks.xstream</groupId>
+            <artifactId>xstream</artifactId>
+            <version>1.4.15</version> <!-- apparently this needs to be exactly this version -->
+          </dependency>
+        </dependencies>
       </plugin>
 
       <!-- New Build mechanism - replaces maven-assembly-plugin -->
@@ -73,33 +81,6 @@
                 <transformer
                   implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
               </transformers>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>license-maven-plugin</artifactId>
-        <version>1.8</version>
-        <executions>
-          <execution>
-            <id>add-third-party</id>
-            <phase>package</phase>
-            <goals>
-              <goal>add-third-party</goal>
-              <goal>download-licenses</goal>
-            </goals>
-            <configuration>
-              <useMissingFile>true</useMissingFile>
-              <excludedScopes>test</excludedScopes>
-              <excludedGroups> (org.eclipse.tahu*)
-              </excludedGroups>
-              <licenseMerges>
-                <licenseMerge>The Apache Software License, Version
-                  2.0|Apache License, Version 2.0|Apache Public License
-                  2.0|Apache License 2.0|Apache Software License -
-                  Version 2.0</licenseMerge>
-              </licenseMerges>
             </configuration>
           </execution>
         </executions>
