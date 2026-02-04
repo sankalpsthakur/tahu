@@ -448,6 +448,7 @@ public class TahuClient implements MqttCallbackExtended {
 		try {
 			return client.getBufferedMessageCount();
 		} catch (Exception e) {
+			logger.debug("Failed to get the MQTT Client Buffered Message Count", e);
 			return 0;
 		}
 	}
@@ -456,6 +457,7 @@ public class TahuClient implements MqttCallbackExtended {
 		try {
 			return client.getInFlightMessageCount();
 		} catch (Exception e) {
+			logger.debug("Failed to get the MQTT Client In-Flight Message Count", e);
 			return 0;
 		}
 	}
@@ -464,6 +466,7 @@ public class TahuClient implements MqttCallbackExtended {
 		try {
 			return client.getDebug();
 		} catch (Exception e) {
+			logger.debug("Failed to get the MQTT Client Debug info", e);
 			return null;
 		}
 	}
