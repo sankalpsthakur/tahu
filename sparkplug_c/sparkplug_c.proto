@@ -1,0 +1,195 @@
+// * Copyright (c) 2015-2021 Cirrus Link Solutions and others
+// *
+// * This program and the accompanying materials are made available under the
+// * terms of the Eclipse Public License 2.0 which is available at
+// * http://www.eclipse.org/legal/epl-2.0.
+// *
+// * SPDX-License-Identifier: EPL-2.0
+// *
+// * Contributors:
+// *   Cirrus Link Solutions - initial implementation
+
+//
+// To compile:
+// cd client_libraries/java
+// protoc --proto_path=../../ --java_out=src/main/java ../../sparkplug_c.proto
+//
+
+edition = "2024";
+
+option java_package = "org.eclipse.tahu.protobuf";
+
+enum DataType {
+    // Indexes of Data Types
+
+    // Unknown placeholder for future expansion.
+    UNKNOWN         = 0;
+
+    // Basic Types
+    INT8            = 1;
+    INT16           = 2;
+    INT32           = 3;
+    INT64           = 4;
+    UINT8           = 5;
+    UINT16          = 6;
+    UINT32          = 7;
+    UINT64          = 8;
+    FLOAT           = 9;
+    DOUBLE          = 10;
+    BOOLEAN         = 11;
+    STRING          = 12;
+    DATE_TIME        = 13;
+    TEXT            = 14;
+
+    // Additional Metric Types
+    UUID            = 15;
+    DATASET         = 16;
+    BYTES           = 17;
+    FILE            = 18;
+    TEMPLATE        = 19;
+
+    // Additional PropertyValue Types
+    PROPERTY_SET      = 20;
+    PROPERTY_SET_LIST = 21;
+
+    // Array Types
+    INT8_ARRAY = 22;
+    INT16_ARRAY = 23;
+    INT32_ARRAY = 24;
+    INT64_ARRAY = 25;
+    UINT8_ARRAY = 26;
+    UINT16_ARRAY = 27;
+    UINT32_ARRAY = 28;
+    UINT64_ARRAY = 29;
+    FLOAT_ARRAY = 30;
+    DOUBLE_ARRAY = 31;
+    BOOLEAN_ARRAY = 32;
+    STRING_ARRAY = 33;
+    DATE_TIME_ARRAY = 34;
+}
+
+message Payload {
+
+    message TypedValue {
+        DataType datatype = 1;
+        bool     is_null  = 2;
+
+        oneof value {
+            int32    int32_value                    = 3;
+            int64    int64_value                    = 4;
+            uint32   uint32_value                   = 5;
+            uint64   uint64_value                   = 6;
+            float    float_value                    = 7;
+            double   double_value                   = 8;
+            bool     boolean_value                  = 9;
+            string   string_value                   = 10;
+            bytes    bytes_value                    = 11;
+            DataSet  dataset_value                  = 12;
+            Template template_value                 = 13;
+            PropertySet     propertyset_value       = 14;
+            PropertySetList propertysets_value      = 15;
+            TypedValueExtension extension_value     = 16;
+        }
+
+        message TypedValueExtension {
+            extensions  1 to max;
+        }
+
+        extensions 17 to max;
+    }
+
+    message Template {
+
+        message Parameter {
+            string name            = 1;
+            TypedValue typed_value = 2;
+            extensions                      3 to max;
+        }
+
+        string version       = 1;                                               // The version of the Template to prevent mismatches
+        repeated Metric metrics       = 2 [features.repeated_field_encoding = EXPANDED]; // Each metric includes a name, datatype, and optionally a value
+        repeated Parameter parameters = 3 [features.repeated_field_encoding = EXPANDED];
+        string template_ref  = 4;          // MUST be a reference to a template definition if this is an instance (i.e. the name of the template definition) - MUST be omitted for template definitions
+        bool is_definition   = 5;
+        extensions                      6 to max;
+    }
+
+    message DataSet {
+
+        message Column {
+            string name     = 1;
+            DataType datatype = 2;
+
+            // Only one type of repeated value shall be used per Column
+            repeated uint32 int_values       = 3 [features.repeated_field_encoding = PACKED];
+            repeated uint64 long_values      = 4 [features.repeated_field_encoding = PACKED];
+            repeated float  float_values     = 5 [features.repeated_field_encoding = PACKED];
+            repeated double double_values    = 6 [features.repeated_field_encoding = PACKED];
+            repeated bool   boolean_values   = 7 [features.repeated_field_encoding = PACKED];
+            repeated string string_values    = 8 [features.repeated_field_encoding = EXPANDED];
+
+            extensions                       9 to max;
+        }
+
+        repeated Column columns              = 1 [features.repeated_field_encoding = EXPANDED];
+        extensions                           2 to max;
+    }
+
+    message PropertySet {
+        repeated string        keys     = 1 [features.repeated_field_encoding = EXPANDED];         // Names of the properties
+        repeated TypedValue    values   = 2 [features.repeated_field_encoding = EXPANDED];         // The Property Values
+        extensions                      3 to max;
+    }
+
+    message PropertySetList {
+        repeated PropertySet propertyset = 1 [features.repeated_field_encoding = EXPANDED];
+        extensions                       2 to max;
+    }
+
+    message MetaData {
+        // Bytes specific metadata
+        bool   is_multi_part   = 1;
+
+        // General metadata
+        string content_type    = 2;        // Content/Media type
+        uint64 size            = 3;        // File size, String size, Multi-part size, etc
+        uint64 seq             = 4;        // Sequence number for multi-part messages
+
+        // File metadata
+        string file_name       = 5;        // File name
+        string file_type       = 6;        // File type (i.e. xml, json, txt, cpp, etc)
+        string md5             = 7;        // md5 of data
+
+        // Others
+        string description     = 8;        // Could be anything such as json or xml of custom properties
+        string eng_unit         = 9;        // Engineering units
+
+        // Future expansion
+        extensions                      10 to max;
+    }
+
+    message Metric {
+
+        string   name          = 1;        // Metric name - Required in BIRTH messages, in DATA messages if using aliases
+        uint64   alias         = 2;        // Metric alias - tied to name on BIRTH and included in all later DATA messages
+        uint64   timestamp     = 3;        // Timestamp associated with data acquisition time - if omitted, the overall payload timestamp is assumed as the data acquisition time
+        DataType datatype      = 4;        // DataType of the metric/tag value
+        string   source        = 5;        // Source for CMD messages if unique to the Metric (typically for forwarded writes in CMD messages)
+        bool     is_historical = 6;        // If this is historical data and should not update real time tag
+        bool     is_transient  = 7;        // Tells consuming clients such as MQTT Engine to not store this as a tag
+        bool     is_null       = 8;        // If this is null - explicitly say so rather than using -1, false, etc for some datatypes.
+        MetaData metadata      = 9;        // Metadata for the Metric
+        PropertySet properties = 10;       // Properties of the Metric
+        TypedValue value       = 11;
+        extensions 12 to max;
+    }
+
+    uint64   timestamp     = 1;        // Timestamp at message sending time
+    repeated Metric   metrics       = 2 [features.repeated_field_encoding = EXPANDED];        // Repeated forever - no limit in Google Protobufs
+    uint64   seq           = 3;        // Message sequence number
+    uint64   bd_seq        = 4;        // The Birth/Death sequence number for BIRTH and DEATH payloads
+    string   source        = 5;        // Source for CMD and REBIRTH messages - the Host Application ID that sent the message
+    string   uuid          = 6;        // UUID to track message type in terms of schema definitions
+    bytes    body          = 7;        // To optionally bypass the whole definition above
+    extensions                      8 to max;   // For third party extensions
+}
