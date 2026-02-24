@@ -105,23 +105,33 @@ message Payload {
 
     message DataSet {
 
-        message Column {
-            optional string name = 1;
-            optional uint32 type = 2;
+        message DataSetValue {
 
-            // Only one type of repeated value shall be used per Column
-            repeated uint32 int_values       = 3 [packed=true];
-            repeated uint64 long_values      = 4 [packed=true];
-            repeated float  float_values     = 5 [packed=true];
-            repeated double double_values    = 6 [packed=true];
-            repeated bool   boolean_values   = 7 [packed=true];
-            repeated string string_values    = 8 [packed=false];
+            oneof value {
+                uint32 int_value                        = 1;
+                uint64 long_value                       = 2;
+                float  float_value                      = 3;
+                double double_value                     = 4;
+                bool   boolean_value                    = 5;
+                string string_value                     = 6;
+                DataSetValueExtension extension_value   = 7;
+            }
 
-            extensions                       9 to max;
+            message DataSetValueExtension {
+                repeated google.protobuf.Any details = 1;
+            }
         }
 
-        repeated Column columns              = 1;
-        extensions                           2 to max;
+        message Row {
+            repeated DataSetValue elements  = 1;
+            repeated google.protobuf.Any details = 2;
+        }
+
+        uint64 num_of_columns                = 1;
+        repeated string   columns            = 2;
+        repeated uint32   types              = 3;
+        repeated Row      rows               = 4;
+        repeated google.protobuf.Any details = 5;
     }
 
     message PropertyValue {

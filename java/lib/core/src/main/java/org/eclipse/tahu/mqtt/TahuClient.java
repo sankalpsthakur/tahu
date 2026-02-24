@@ -495,10 +495,6 @@ public class TahuClient implements MqttCallbackExtended {
 		}
 	}
 
-	public Date getClientInitDateTime() {
-		return client.getClientInitDateTime();
-	}
-
 	/**
 	 * Returns a {@link Date} instance representing the online date.
 	 * 
