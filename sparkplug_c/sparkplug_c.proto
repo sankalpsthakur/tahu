@@ -66,6 +66,9 @@ enum DataType {
     BOOLEAN_ARRAY = 32;
     STRING_ARRAY = 33;
     DATE_TIME_ARRAY = 34;
+
+    // Command Type
+    COMMAND         = 35;        // A callable command/function metric - the value is carried in the Metric 'command' field rather than 'value'
 }
 
 message Payload {
@@ -112,6 +115,33 @@ message Payload {
         string template_ref  = 4;          // MUST be a reference to a template definition if this is an instance (i.e. the name of the template definition) - MUST be omitted for template definitions
         bool is_definition   = 5;
         extensions                      6 to max;
+    }
+
+    message Status {
+        uint64 code    = 1;                // Result code of a command invocation - 0 indicates success, any non-zero value indicates an error
+        string message = 2;                // Optional human readable status/error description
+        extensions                      3 to max;
+    }
+
+    message Command {
+
+        // Input argument definitions (in NBIRTH/DBIRTH) or supplied argument values (in NCMD/DCMD requests).
+        // Each argument is a full Metric so it can carry a name, datatype, properties, metadata, and may itself
+        // be a Template instance for structured/complex arguments. Omitted for commands that accept no inputs.
+        repeated Metric arguments     = 1 [features.repeated_field_encoding = EXPANDED];
+
+        // Result/output argument definitions (in NBIRTH/DBIRTH) or returned result values (in NRESP/DRESP responses).
+        // Omitted for commands that return no outputs.
+        repeated Metric results       = 2 [features.repeated_field_encoding = EXPANDED];
+
+        // Correlation identifier set on an NCMD/DCMD request and echoed unchanged in the corresponding
+        // NRESP/DRESP response so a Host Application can match the response to the request that produced it.
+        string correlation_id = 3;
+
+        // Execution status - present in NRESP/DRESP responses, omitted in BIRTH definitions and CMD requests.
+        Status status         = 4;
+
+        extensions                      5 to max;
     }
 
     message DataSet {
@@ -181,7 +211,8 @@ message Payload {
         MetaData metadata      = 9;        // Metadata for the Metric
         PropertySet properties = 10;       // Properties of the Metric
         TypedValue value       = 11;
-        extensions 12 to max;
+        Command  command       = 12;       // Command definition (BIRTH), invocation (CMD), or response (RESP) - present when datatype == COMMAND instead of 'value'
+        extensions 13 to max;
     }
 
     uint64   timestamp     = 1;        // Timestamp at message sending time
