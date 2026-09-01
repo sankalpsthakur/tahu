@@ -67,4 +67,25 @@ public class EnDeCodeTest extends TestCase {
 			fail();
 		}
 	}
+
+	public void testUInt8ArrayHighBytes() {
+		try {
+			Short[] original = new Short[] { 0, 127, 128, 200, 255 };
+			SparkplugBPayload originalPayload = new SparkplugBPayloadBuilder()
+					.addMetric(new MetricBuilder("u8a", MetricDataType.UInt8Array, original).createMetric())
+					.createPayload();
+			byte[] encoded = new SparkplugBPayloadEncoder().getBytes(originalPayload, false);
+
+			SparkplugBPayload decodedPayload = new SparkplugBPayloadDecoder().buildFromByteArray(encoded, null);
+			Short[] decoded = (Short[]) decodedPayload.getMetrics().get(0).getValue();
+
+			assertEquals(original.length, decoded.length);
+			for (int i = 0; i < original.length; i++) {
+				assertEquals(original[i], decoded[i]);
+			}
+		} catch (Exception e) {
+			System.out.println(e);
+			fail();
+		}
+	}
 }
